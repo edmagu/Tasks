@@ -1,3 +1,10 @@
+# Elias Daniel Macero Gutierrez
+# Integer Identifier
+# Date 10/12/2025
+# Version 2.1
+
+
+
 def integer_identifier(num: int) -> str:
     """Return whether an integer is Positive, Negative, or Zero."""
     if num > 0:

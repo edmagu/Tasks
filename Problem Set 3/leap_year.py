@@ -1,3 +1,9 @@
+# Elias Daniel Macero Gutierrez
+# Leap Year Checker
+# Date 10/12/2025
+# Version 1.0.1
+
+
 def leap_year():
     try:
         year = int(input("Enter a year (e.g., 2024): "))

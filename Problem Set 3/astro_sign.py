@@ -1,3 +1,10 @@
+# Elias Daniel Macero Gutierrez
+# Astrological Sign Determiner
+# Date 10/12/2025
+# Version 1.3.0
+
+
+
 from typing import Tuple
 
 

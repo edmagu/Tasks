@@ -1,4 +1,7 @@
-
+# Elias Daniel Macero Gutierrez
+# Postage Calculator
+# Date 10/12/2025
+# Version 1.0.7
 from math import ceil
 
 
