@@ -1,5 +1,5 @@
-# Assignment 1 - Menu driven program using if statements and loops
-# Author: Elias Daniel Macero Gutierrez
+# Menu driven program using if statements and loops
+# Elias Daniel Macero Gutierrez
 # This program displays a menu to the user and performs one of:
     # 1) display a random ASCII art, 2) display a square of stars (n), 
     # 3) display a triangle of n lines, or 4) exit the program.
