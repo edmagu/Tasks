@@ -109,7 +109,6 @@ def rab_hare():
     prompt the user for a race length, then run the race simulation on a
     number line until someone reaches or passes the finish line.
     """
-    import random
 
     values = fetch_values_from_model()
     print_values(values)
