@@ -185,10 +185,12 @@ def polynomial_grapher(coefficient):
         ytick_min -= 1
         ytick_max += 1
 
-    # build integer tick arrays (step = 1)
-    x_ticks = list(range(xtick_min, xtick_max + 1))
-    y_ticks = list(range(ytick_min, ytick_max + 1))
-
+    # Use a locator that forces integer ticks but limits the total number of ticks
+    import matplotlib.ticker as mticker
+    max_ticks = 41  # cap to avoid huge numbers of ticks that freeze plotting
+    x_locator = mticker.MaxNLocator(nbins=max_ticks, integer=True, prune='both')
+    y_locator = mticker.MaxNLocator(nbins=max_ticks, integer=True, prune='both')
+ 
     # Create plot with Desmos-like styling
     fig, ax = plt.subplots(figsize=(10, 6))
     fig.patch.set_facecolor("white")
@@ -233,19 +235,9 @@ def polynomial_grapher(coefficient):
     _draw_axis_arrow(ax, 'x')
     _draw_axis_arrow(ax, 'y')
 
-    # set integer ticks (step = 1)
-    # If user domain is very large, matplotlib will still display many ticks; keep step=1 per request
-    if len(x_ticks) >= 2:
-        ax.set_xticks(x_ticks)
-    else:
-        # ensure at least ticks at integer positions around center
-        ax.set_xticks([math.floor(center_x)-1, math.floor(center_x), math.floor(center_x)+1])
-
-    if len(y_ticks) >= 2:
-        ax.set_yticks(y_ticks)
-    else:
-        ax.set_yticks([math.floor(0)-1, 0, math.floor(0)+1])
-
+    # Apply integer locators with a sensible cap on number of ticks
+    ax.xaxis.set_major_locator(x_locator)
+    ax.yaxis.set_major_locator(y_locator)
     ax.set_xticklabels([str(int(t)) for t in ax.get_xticks()])
     ax.set_yticklabels([str(int(t)) for t in ax.get_yticks()])
 
