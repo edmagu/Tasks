@@ -91,6 +91,7 @@ def _parse_polynomial_input(s: str):
 def polynomial_grapher(coefficient):
     """Plot a polynomial with Desmos-like visuals, centered on x-intercepts.
     Continuous curve and integer tick increments on both axes.
+    Starts with a 10-unit range view and supports mouse-wheel zooming.
     """
     try:
         import numpy as np
@@ -125,13 +126,7 @@ def polynomial_grapher(coefficient):
         crit = np.roots(dp)
         real_crit = sorted([c.real for c in crit if abs(c.imag) < 1e-9 and np.isfinite(c.real)])
 
-    # Determine center_x:
-    # Prefer midpoint of min/max real roots so all x-intercepts sit around center.
-    xs_interest = []
-    xs_interest.extend(real_roots)
-    xs_interest.extend(real_crit)
-    xs_interest = [x for x in xs_interest if np.isfinite(x)]
-
+    # Determine center_x (but we'll still start at origin)
     if real_roots:
         center_x = 0.5 * (min(real_roots) + max(real_roots))
     elif real_crit:
@@ -139,27 +134,17 @@ def polynomial_grapher(coefficient):
     else:
         center_x = 0.0
 
-    # Determine horizontal half-span so roots + critical points and nearby vertex visible
-    if xs_interest:
-        max_dist = max(abs(x - center_x) for x in xs_interest)
-        half_span = max(2.0, max_dist * 1.6 + 1.0)  # scale factor + padding
-    else:
-        half_span = 5.0
-
-    # Expand span slightly depending on leading coefficient magnitude for clarity
-    lead_abs = abs(leading) if leading != 0 else 1.0
-    extra = max(0.0, (lead_abs ** (1 / max(1, degree + 1))) - 1.0)
-    half_span += extra
-
-    x_min = center_x - half_span
-    x_max = center_x + half_span
-
-    # make continuous: dense sampling (smooth, continuous curve)
+    # CHANGED: Always start with 10-unit range centered at 0 (origin)
+    initial_half_span = 5.0  # 5 units in each direction for 10-unit total range
+    x_min = -initial_half_span
+    x_max = initial_half_span
+    
+    # Create dense sampling for high-quality curve
     num_pts = 8000 if degree >= 3 else 4000
     x = np.linspace(x_min, x_max, num_pts)
     y = p(x)
 
-    # compute sensible y-limits while avoiding extreme spikes
+    # Calculate y limits based on this view
     finite = np.isfinite(y)
     if not finite.any():
         raise RuntimeError("Polynomial evaluation produced no finite values on the plotting grid.")
@@ -172,22 +157,9 @@ def polynomial_grapher(coefficient):
         y_min -= 1.0
         y_max += 1.0
 
-    # round axis tick ranges to integers so ticks increment by 1
-    xtick_min = math.ceil(x_min)
-    xtick_max = math.floor(x_max)
-    if xtick_min > xtick_max:
-        # ensure at least one integer tick visible
-        xtick_min = math.floor(x_min)
-        xtick_max = math.ceil(x_max)
-    ytick_min = math.floor(y_min)
-    ytick_max = math.ceil(y_max)
-    if ytick_min == ytick_max:
-        ytick_min -= 1
-        ytick_max += 1
-
     # Use a locator that forces integer ticks but limits the total number of ticks
     import matplotlib.ticker as mticker
-    max_ticks = 41  # cap to avoid huge numbers of ticks that freeze plotting
+    max_ticks = 21  # cap to avoid huge numbers of ticks that freeze plotting
     x_locator = mticker.MaxNLocator(nbins=max_ticks, integer=True, prune='both')
     y_locator = mticker.MaxNLocator(nbins=max_ticks, integer=True, prune='both')
  
@@ -201,21 +173,21 @@ def polynomial_grapher(coefficient):
     for w, a in [(8, 0.05), (5, 0.08), (3, 0.12)]:
         ax.plot(x, y, linewidth=w, color=base_color, alpha=a, solid_capstyle='round', zorder=1)
     # main crisp line
-    ax.plot(x, y, linewidth=2.6, color=base_color, zorder=2, solid_capstyle='round')
+    main_line = ax.plot(x, y, linewidth=2.6, color=base_color, zorder=2, solid_capstyle='round')[0]
 
-    # Place spines so axes collide at (center_x, 0)
-    ax.spines['left'].set_position(('data', center_x))   # vertical axis at center_x
-    ax.spines['bottom'].set_position(('data', 0.0))     # horizontal axis at y = 0
+    # Place spines to cross at origin (0,0) - pure Desmos style
+    ax.spines['left'].set_position('zero')
+    ax.spines['bottom'].set_position('zero')
     ax.spines['right'].set_color('none')
     ax.spines['top'].set_color('none')
     ax.spines['left'].set_zorder(3)
     ax.spines['bottom'].set_zorder(3)
 
-    # Recompute limits in case spines positioning influences tick layout
+    # Set initial view limits
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(y_min, y_max)
 
-    # Draw arrowheads on axes relative to current axis limits
+    # Draw arrowheads on axes
     def _draw_axis_arrow(ax, axis='x', size=12, color='k'):
         xm, xM = ax.get_xlim()
         ym, yM = ax.get_ylim()
@@ -227,10 +199,10 @@ def polynomial_grapher(coefficient):
             ax.annotate('', xy=(xm - 0.02*(xM-xm), 0), xytext=(xm, 0),
                         arrowprops=dict(arrowstyle='-|>', mutation_scale=size, color=color))
         else:
-            # vertical arrows up and down at x=center_x
-            ax.annotate('', xy=(center_x, yM + 0.02*(yM-ym)), xytext=(center_x, yM),
+            # vertical arrows up and down at x=0
+            ax.annotate('', xy=(0, yM + 0.02*(yM-ym)), xytext=(0, yM),
                         arrowprops=dict(arrowstyle='-|>', mutation_scale=size, color=color))
-            ax.annotate('', xy=(center_x, ym - 0.02*(yM-ym)), xytext=(center_x, ym),
+            ax.annotate('', xy=(0, ym - 0.02*(yM-ym)), xytext=(0, ym),
                         arrowprops=dict(arrowstyle='-|>', mutation_scale=size, color=color))
     _draw_axis_arrow(ax, 'x')
     _draw_axis_arrow(ax, 'y')
@@ -245,21 +217,76 @@ def polynomial_grapher(coefficient):
     ax.set_xlabel("x", loc='right')
     ax.set_ylabel("p(x)", loc='top', rotation=0)
 
+    # NEW: Add zoom functionality
+    def _update_view_for_zoom(xmin, xmax):
+        """Update the plot with new x limits and recalculate the curve."""
+        # Update the x and y range for the plot
+        margin = 0.05 * (xmax - xmin)
+        x_range = np.linspace(xmin - margin, xmax + margin, num_pts)
+        y_range = p(x_range)
+        main_line.set_data(x_range, y_range)
+        
+        # Update arrows
+        _draw_axis_arrow(ax, 'x')
+        _draw_axis_arrow(ax, 'y')
+        
+        # Update the tick formatters
+        ax.xaxis.set_major_locator(x_locator)
+        ax.yaxis.set_major_locator(y_locator)
+        ax.set_xticklabels([str(int(t)) for t in ax.get_xticks()])
+        ax.set_yticklabels([str(int(t)) for t in ax.get_yticks()])
+        
+        # Redraw canvas
+        fig.canvas.draw_idle()
+    
+    def _on_scroll(event):
+        """Handle scroll events for zooming."""
+        if event.inaxes != ax:
+            return
+        
+        # Get current view limits
+        xmin, xmax = ax.get_xlim()
+        ymin, ymax = ax.get_ylim()
+        
+        # Calculate zoom factor (0.8 = zoom in, 1.25 = zoom out)
+        factor = 0.8 if event.button == 'up' else 1.25
+        
+        # Center zoom around mouse pointer
+        xcenter = event.xdata
+        ycenter = event.ydata
+        
+        # Calculate new view limits
+        dx = (xmax - xmin) / 2
+        dy = (ymax - ymin) / 2
+        
+        new_xmin = xcenter - factor * (xcenter - xmin)
+        new_xmax = xcenter + factor * (xmax - xcenter)
+        new_ymin = ycenter - factor * (ycenter - ymin)
+        new_ymax = ycenter + factor * (ymax - ycenter)
+        
+        # Update axes limits
+        ax.set_xlim(new_xmin, new_xmax)
+        ax.set_ylim(new_ymin, new_ymax)
+        
+        # Update the view
+        _update_view_for_zoom(new_xmin, new_xmax)
+    
+    # Connect scroll event for zooming
+    fig.canvas.mpl_connect('scroll_event', _on_scroll)
+
     # Annotate real roots (x-intercepts) exactly on the x-axis
     for r in real_roots:
-        if x_min <= r <= x_max:
-            ax.plot(r, 0.0, 'o', color='firebrick', markersize=6, zorder=6)
-            ax.annotate(f"{r:.6g}", xy=(r, 0.0), xytext=(6, 6), textcoords='offset points',
-                        color='firebrick', fontsize=8, zorder=7)
+        ax.plot(r, 0.0, 'o', color='firebrick', markersize=6, zorder=6)
+        ax.annotate(f"{r:.6g}", xy=(r, 0.0), xytext=(6, 6), textcoords='offset points',
+                    color='firebrick', fontsize=8, zorder=7)
 
     # Annotate critical points
     for c in real_crit:
-        if x_min <= c <= x_max:
-            val = p(c)
-            if np.isfinite(val):
-                ax.plot(c, val, 's', color='darkorange', markersize=5, zorder=6)
-                ax.annotate(f"{c:.6g}", xy=(c, val), xytext=(6, -10), textcoords='offset points',
-                            color='darkorange', fontsize=8, zorder=7)
+        val = p(c)
+        if np.isfinite(val):
+            ax.plot(c, val, 's', color='darkorange', markersize=5, zorder=6)
+            ax.annotate(f"{c:.6g}", xy=(c, val), xytext=(6, -10), textcoords='offset points',
+                        color='darkorange', fontsize=8, zorder=7)
 
     # Leading coefficient display in title and legend
     lead_str = f"Leading coef: {leading:.6g}"
@@ -302,7 +329,6 @@ def polynomial_grapher(coefficient):
 
     fig.canvas.mpl_connect("motion_notify_event", _on_move)
 
-    # Tight layout and show
     plt.tight_layout()
     plt.show()
 
