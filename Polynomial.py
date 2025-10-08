@@ -1,7 +1,8 @@
 # Polynomial grapher with user-friendly parser that supports multiple terms with same power.
 # Author: Elias Daniel Macero Gutierrez
-# Version: 2.3 - centered on x-intercepts / Desmos-like visuals
+# Version: 2.4 - integer tick increments & continuous plot
 import re
+import math
 
 def _parse_polynomial_input(s: str):
     """Parse a user-friendly polynomial string into a list of coefficients
@@ -89,14 +90,7 @@ def _parse_polynomial_input(s: str):
 
 def polynomial_grapher(coefficient):
     """Plot a polynomial with Desmos-like visuals, centered on x-intercepts.
-
-    Behavior tailored to user's request:
-      - If real x-intercepts exist, center the horizontal view around their midpoint.
-      - If no real roots, use critical points (derivative roots) or 0 as center.
-      - Expand horizontal range so roots and nearby vertex/critical points are visible.
-      - Place the vertical axis at the chosen center x (so axes "collide" at (center,0))
-        while keeping numerical ticks reflecting actual coordinates.
-      - Keep Desmos-like styling and hover coordinate readout.
+    Continuous curve and integer tick increments on both axes.
     """
     try:
         import numpy as np
@@ -160,8 +154,8 @@ def polynomial_grapher(coefficient):
     x_min = center_x - half_span
     x_max = center_x + half_span
 
-    # create dense sampling
-    num_pts = 6000 if degree >= 3 else 3000
+    # make continuous: dense sampling (smooth, continuous curve)
+    num_pts = 8000 if degree >= 3 else 4000
     x = np.linspace(x_min, x_max, num_pts)
     y = p(x)
 
@@ -177,6 +171,23 @@ def polynomial_grapher(coefficient):
     if abs(y_max - y_min) < 1e-3:
         y_min -= 1.0
         y_max += 1.0
+
+    # round axis tick ranges to integers so ticks increment by 1
+    xtick_min = math.ceil(x_min)
+    xtick_max = math.floor(x_max)
+    if xtick_min > xtick_max:
+        # ensure at least one integer tick visible
+        xtick_min = math.floor(x_min)
+        xtick_max = math.ceil(x_max)
+    ytick_min = math.floor(y_min)
+    ytick_max = math.ceil(y_max)
+    if ytick_min == ytick_max:
+        ytick_min -= 1
+        ytick_max += 1
+
+    # build integer tick arrays (step = 1)
+    x_ticks = list(range(xtick_min, xtick_max + 1))
+    y_ticks = list(range(ytick_min, ytick_max + 1))
 
     # Create plot with Desmos-like styling
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -222,14 +233,22 @@ def polynomial_grapher(coefficient):
     _draw_axis_arrow(ax, 'x')
     _draw_axis_arrow(ax, 'y')
 
-    # Ticks: centered around center_x
-    x_tick_span = max(1, (x_max - x_min) / 8.0)
-    xticks = np.linspace(np.ceil(x_min / x_tick_span) * x_tick_span,
-                         np.floor(x_max / x_tick_span) * x_tick_span, 9)
-    ax.set_xticks(xticks)
-    ax.set_yticks(np.linspace(y_min, y_max, 9))
+    # set integer ticks (step = 1)
+    # If user domain is very large, matplotlib will still display many ticks; keep step=1 per request
+    if len(x_ticks) >= 2:
+        ax.set_xticks(x_ticks)
+    else:
+        # ensure at least ticks at integer positions around center
+        ax.set_xticks([math.floor(center_x)-1, math.floor(center_x), math.floor(center_x)+1])
 
-    # Grid and styling
+    if len(y_ticks) >= 2:
+        ax.set_yticks(y_ticks)
+    else:
+        ax.set_yticks([math.floor(0)-1, 0, math.floor(0)+1])
+
+    ax.set_xticklabels([str(int(t)) for t in ax.get_xticks()])
+    ax.set_yticklabels([str(int(t)) for t in ax.get_yticks()])
+
     ax.grid(True, which='major', linestyle='--', linewidth=0.6, color='#dddddd', zorder=0)
     ax.set_xlabel("x", loc='right')
     ax.set_ylabel("p(x)", loc='top', rotation=0)
